@@ -1,0 +1,6 @@
+aiogram==3.22.0
+pydantic-settings==2.10.1
+python-dotenv==1.1.1
+psycopg[binary]==3.2.13
+psycopg-pool==3.2.6
+redis==6.4.0
