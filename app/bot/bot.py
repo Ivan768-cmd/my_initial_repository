@@ -5,11 +5,13 @@ import asyncio
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.bot.config import load_config
 from app.bot.middlewares.database import DatabaseMiddleware
 from app.infrastructure.database.connection import get_pg_pool
 from app.infrastructure.redis.storage import get_redis_storage
+from app.bot.services.reminder_service import send_daily_reminders
 
 from app.bot.handlers.start import router as start_router
 from app.bot.handlers.reports import router as reports_router
@@ -17,6 +19,7 @@ from app.bot.handlers.budget import router as budget_router
 from app.bot.handlers.goals import router as goals_router
 from app.bot.handlers.subscriptions import router as subscriptions_router
 from app.bot.handlers.settings import router as settings_router
+from app.bot.handlers.reminders import router as reminders_router
 from app.bot.handlers.expenses import router as expenses_router
 
 logger = logging.getLogger(__name__)
@@ -33,21 +36,29 @@ async def main() -> None:
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
 
-    # Redis FSM storage
     storage = get_redis_storage(config)
     dp = Dispatcher(storage=storage)
 
-    # PostgreSQL pool
     db_pool = await get_pg_pool(config)
     dp.update.middleware(DatabaseMiddleware(db_pool))
 
-    # Routers
+    # Планировщик напоминаний — каждую минуту
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(
+        send_daily_reminders,
+        trigger="cron",
+        minute="*",
+        kwargs={"bot": bot, "pool": db_pool},
+    )
+    scheduler.start()
+
     dp.include_router(start_router)
     dp.include_router(reports_router)
     dp.include_router(budget_router)
     dp.include_router(goals_router)
     dp.include_router(subscriptions_router)
     dp.include_router(settings_router)
+    dp.include_router(reminders_router)
     dp.include_router(expenses_router)
 
     logger.info("Starting bot...")
@@ -55,6 +66,7 @@ async def main() -> None:
     try:
         await dp.start_polling(bot)
     finally:
+        scheduler.shutdown(wait=False)
         await db_pool.close()
         await storage.close()
         await bot.session.close()
