@@ -1,23 +1,36 @@
 services:
+  bot:
+    build: .
+    container_name: expense_bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    depends_on:
+      - postgres
+      - redis
+
   postgres:
     image: postgres:16-alpine
     container_name: expense_bot_db
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: expense_user
-      POSTGRES_PASSWORD: expense_pass
-      POSTGRES_DB: expense_bot
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${DB_USER:-expense_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-expense_pass}
+      POSTGRES_DB: ${DB_NAME:-expense_bot}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
+    ports:
+      - "5432:5432"
 
   redis:
     image: redis:7-alpine
     container_name: expense_bot_redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
-    restart: unless-stopped
 
 volumes:
   postgres_data:
