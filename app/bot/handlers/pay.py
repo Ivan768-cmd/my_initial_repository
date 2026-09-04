@@ -1,12 +1,6 @@
 from aiogram import Router, F, Bot
 from aiogram.filters import Command
-from aiogram.types import (
-    Message,
-    LabeledPrice,
-    PreCheckoutQuery,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-)
+from aiogram.types import Message, LabeledPrice, PreCheckoutQuery
 from psycopg import AsyncConnection
 
 from app.bot.config import Config
@@ -15,11 +9,12 @@ from app.infrastructure.database.repositories.access import (
     has_active_premium,
     get_premium_until,
     grant_premium_days,
+    get_user_subscriptions,
 )
 
 router = Router(name="pay")
 
-SUB_PRICE_RUB = 300
+SUB_PRICE_RUB = 199
 SUB_DAYS = 30
 
 
@@ -66,6 +61,43 @@ async def process_pay_command(
     )
 
 
+@router.message(Command("subscription"))
+async def process_subscription_command(
+    message: Message,
+    conn: AsyncConnection,
+    config: Config,
+) -> None:
+    if message.from_user.id in config.bot.admin_ids:
+        await message.answer("У администратора полный доступ без оплаты.")
+        return
+
+    until = await get_premium_until(conn, message.from_user.id)
+    active = until is not None and until > __import__("datetime").datetime.now()
+
+    if not active:
+        await message.answer(
+            "Подписка не активна.\n"
+            "Оформить: /pay"
+        )
+        return
+
+    history = await get_user_subscriptions(conn, message.from_user.id)
+    lines = [
+        f"Подписка активна до <b>{until.strftime('%d.%m.%Y %H:%M')}</b>"
+    ]
+
+    if history:
+        lines.append("\n<b>История:</b>")
+        for item in history[:5]:
+            status = "✅" if item["is_active"] else "❌"
+            lines.append(
+                f"{status} {item['starts_at'].strftime('%d.%m.%Y')} — "
+                f"{item['expires_at'].strftime('%d.%m.%Y')}"
+            )
+
+    await message.answer("\n".join(lines))
+
+
 @router.pre_checkout_query()
 async def process_pre_checkout(pre_checkout: PreCheckoutQuery, bot: Bot) -> None:
     await bot.answer_pre_checkout_query(pre_checkout.id, ok=True)
@@ -83,7 +115,7 @@ async def process_successful_payment(
         first_name=message.from_user.first_name,
     )
 
-    until = await grant_premium_days(conn, message.from_user.id, SUB_DAYS)
+    until = await grant_premium_days(conn, message.from_user.id, SUB_DAYS, source="payment")
     await message.answer(
         "Оплата прошла успешно!\n\n"
         f"Подписка активна до <b>{until.strftime('%d.%m.%Y')}</b>.\n"
