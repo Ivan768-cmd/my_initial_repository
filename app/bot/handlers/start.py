@@ -1,33 +1,76 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
+from psycopg import AsyncConnection
 
+from app.bot.config import Config
 from app.bot.keyboards.reply import get_main_keyboard
+from app.infrastructure.database.repositories.transaction import ensure_user
+from app.infrastructure.database.repositories.access import has_active_premium
 
 router = Router(name="start")
 
 
 @router.message(CommandStart())
-async def process_start_command(message: Message) -> None:
+async def process_start_command(
+    message: Message,
+    conn: AsyncConnection,
+    config: Config,
+) -> None:
+    await ensure_user(
+        conn,
+        user_id=message.from_user.id,
+        username=message.from_user.username,
+        first_name=message.from_user.first_name,
+    )
+
+    is_admin = message.from_user.id in config.bot.admin_ids
+    is_premium = await has_active_premium(conn, message.from_user.id)
+
+    if is_admin or is_premium:
+        await message.answer(
+            f"Привет, {message.from_user.first_name}!\n\n"
+            "Я бот для учёта расходов.\n"
+            "Просто пиши сообщения вида:\n"
+            "• <code>Такси 450</code>\n"
+            "• <code>Продукты 3200</code>\n"
+            "• <code>Зарплата 85000</code>\n\n"
+            "Список всех команд — /help",
+            reply_markup=get_main_keyboard()
+        )
+        return
+
     await message.answer(
         f"Привет, {message.from_user.first_name}!\n\n"
-        "Я бот для учёта расходов.\n"
-        "Просто пиши сообщения вида:\n"
-        "• <code>Такси 450</code>\n"
-        "• <code>Продукты 3200</code>\n"
-        "• <code>Зарплата 85000</code>\n\n"
-        "Список всех команд — /help",
-        reply_markup=get_main_keyboard()
+        "Я бот для учёта расходов и доходов.\n\n"
+        "Чтобы пользоваться ботом, нужна подписка.\n"
+        "Стоимость: <b>199 ₽</b> за 30 дней.\n\n"
+        "Оплатить: /pay"
     )
 
 
 @router.message(Command("help"))
 @router.message(F.text == "❓ Помощь")
-async def process_help_command(message: Message) -> None:
+async def process_help_command(
+    message: Message,
+    conn: AsyncConnection,
+    config: Config,
+) -> None:
+    is_admin = message.from_user.id in config.bot.admin_ids
+    is_premium = await has_active_premium(conn, message.from_user.id)
+
+    if not (is_admin or is_premium):
+        await message.answer(
+            "Доступ откроется после оплаты подписки.\n\n"
+            "Оплатить: /pay"
+        )
+        return
+
     text = (
         "<b>Доступные команды:</b>\n\n"
         "/start — начать работу\n"
         "/help — список команд\n"
+        "/pay — подписка\n"
         "/balance — текущий баланс\n"
         "/history — последние операции\n"
         "/stats — статистика по категориям\n"
@@ -53,10 +96,6 @@ async def process_help_command(message: Message) -> None:
         "/remind — статус\n\n"
         "<b>Настройки:</b>\n"
         "/settings — настройки\n"
-        "/reset_data — удалить все данные\n\n"
-        "<b>Как добавлять записи:</b>\n"
-        "• <code>Такси 450</code>\n"
-        "• <code>Кофе 280 #работа</code>\n"
-        "• <code>Зарплата 85000</code>"
+        "/reset_data — удалить все данные"
     )
     await message.answer(text)

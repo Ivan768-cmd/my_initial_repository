@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,18 +10,16 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
-    # Telegram
     bot_token: str
     admin_ids: list[int]
+    provider_token: str = ""
 
-    # PostgreSQL
     db_host: str = "localhost"
     db_port: int = 5432
     db_user: str
     db_password: str
     db_name: str
 
-    # Redis
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_db: int = 0
@@ -46,6 +45,7 @@ class RedisConfig:
 class TgBot:
     token: str
     admin_ids: list[int]
+    provider_token: str = ""
 
 
 @dataclass
@@ -57,11 +57,11 @@ class Config:
 
 def load_config() -> Config:
     settings = Settings()
-
     return Config(
         bot=TgBot(
             token=settings.bot_token,
-            admin_ids=settings.admin_ids
+            admin_ids=settings.admin_ids,
+            provider_token=settings.provider_token
         ),
         db=DatabaseConfig(
             host=settings.db_host,

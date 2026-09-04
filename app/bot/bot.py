@@ -9,11 +9,13 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.bot.config import load_config
 from app.bot.middlewares.database import DatabaseMiddleware
+from app.bot.middlewares.access import AccessMiddleware
 from app.infrastructure.database.connection import get_pg_pool
 from app.infrastructure.redis.storage import get_redis_storage
 from app.bot.services.reminder_service import send_daily_reminders
 
 from app.bot.handlers.start import router as start_router
+from app.bot.handlers.pay import router as pay_router
 from app.bot.handlers.reports import router as reports_router
 from app.bot.handlers.budget import router as budget_router
 from app.bot.handlers.goals import router as goals_router
@@ -38,11 +40,12 @@ async def main() -> None:
 
     storage = get_redis_storage(config)
     dp = Dispatcher(storage=storage)
+    dp.workflow_data.update(config=config)
 
     db_pool = await get_pg_pool(config)
     dp.update.middleware(DatabaseMiddleware(db_pool))
+    dp.update.middleware(AccessMiddleware())
 
-    # Планировщик напоминаний — каждую минуту
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         send_daily_reminders,
@@ -53,6 +56,7 @@ async def main() -> None:
     scheduler.start()
 
     dp.include_router(start_router)
+    dp.include_router(pay_router)
     dp.include_router(reports_router)
     dp.include_router(budget_router)
     dp.include_router(goals_router)
