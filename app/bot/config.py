@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     bot_token: str
     admin_ids: list[int]
     provider_token: str = ""
+    yookassa_shop_id: str = ""
+    yookassa_secret_key: str = ""
 
     db_host: str = "localhost"
     db_port: int = 5432
@@ -46,6 +48,8 @@ class TgBot:
     token: str
     admin_ids: list[int]
     provider_token: str = ""
+    yookassa_shop_id: str = ""
+    yookassa_secret_key: str = ""
 
 
 @dataclass
@@ -61,18 +65,20 @@ def load_config() -> Config:
         bot=TgBot(
             token=settings.bot_token,
             admin_ids=settings.admin_ids,
-            provider_token=settings.provider_token
+            provider_token=settings.provider_token,
+            yookassa_shop_id=settings.yookassa_shop_id,
+            yookassa_secret_key=settings.yookassa_secret_key,
         ),
         db=DatabaseConfig(
             host=settings.db_host,
             port=settings.db_port,
             user=settings.db_user,
             password=settings.db_password,
-            name=settings.db_name
+            name=settings.db_name,
         ),
         redis=RedisConfig(
             host=settings.redis_host,
             port=settings.redis_port,
-            db=settings.redis_db
+            db=settings.redis_db,
         )
     )

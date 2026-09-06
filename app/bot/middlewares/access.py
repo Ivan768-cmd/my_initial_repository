@@ -61,6 +61,10 @@ class AccessMiddleware(BaseMiddleware):
             if command in ALLOWED_COMMANDS:
                 return await handler(event, data)
 
+        if callback and callback.data:
+            if callback.data in {"pay_card", "pay_sbp"} or callback.data.startswith("sbp_check:"):
+                return await handler(event, data)
+
         if conn is not None and await has_active_premium(conn, user.id):
             return await handler(event, data)
 
