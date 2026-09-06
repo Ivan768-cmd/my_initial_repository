@@ -23,6 +23,7 @@ from app.bot.handlers.subscriptions import router as subscriptions_router
 from app.bot.handlers.settings import router as settings_router
 from app.bot.handlers.reminders import router as reminders_router
 from app.bot.handlers.expenses import router as expenses_router
+from app.bot.handlers.analyze import router as analyze_router
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ async def main() -> None:
     dp.include_router(settings_router)
     dp.include_router(reminders_router)
     dp.include_router(expenses_router)
+    dp.include_router(analyze_router)
 
     logger.info("Starting bot...")
 
