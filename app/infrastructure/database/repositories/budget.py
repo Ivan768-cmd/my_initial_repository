@@ -131,3 +131,16 @@ async def get_budget_total(conn: AsyncConnection, user_id: int) -> float:
     )
     result = await row.fetchone()
     return float(result[0]) if result else 0.0
+
+
+async def delete_budget_item(conn: AsyncConnection, user_id: int, category: str) -> bool:
+    row = await conn.execute(
+        """
+        DELETE FROM budget_items
+        WHERE user_id = %s AND LOWER(category) = LOWER(%s)
+        RETURNING id
+        """,
+        (user_id, category),
+    )
+    result = await row.fetchone()
+    return result is not None

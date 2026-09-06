@@ -14,6 +14,7 @@ from app.infrastructure.database.repositories.budget import (
     get_month_spent_by_category,
     get_last_month_expense_share,
     get_budget_total,
+    delete_budget_item,
 )
 from app.infrastructure.database.repositories.transaction import (
     get_category_spent,
@@ -211,3 +212,22 @@ async def process_limits_command(message: Message, conn: AsyncConnection) -> Non
         percent = min(100, int(spent / limit * 100)) if limit > 0 else 0
         lines.append(f"{category}: {spent:,.0f} / {limit:,.0f} ₽ ({percent}%)")
     await message.answer("\n".join(lines))
+
+
+@router.message(Command("unplan"))
+async def process_unplan(message: Message, conn: AsyncConnection) -> None:
+    args = message.text.split(maxsplit=1)
+    if len(args) < 2:
+        await message.answer("Использование:\n<code>/unplan Такси</code>")
+        return
+
+    category = args[1].strip()
+    deleted = await delete_budget_item(conn, message.from_user.id, category)
+    if not deleted:
+        await message.answer(f"Категории «{category}» в бюджете нет.")
+        return
+
+    await message.answer(
+        f"Категория «<b>{category}</b>» удалена из бюджета.\n"
+        "Смотреть прогресс: /budget"
+    )
