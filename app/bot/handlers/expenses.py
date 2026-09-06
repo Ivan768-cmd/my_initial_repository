@@ -17,7 +17,7 @@ from app.infrastructure.database.repositories.budget import get_limit
 router = Router(name="expenses")
 
 
-@router.message(F.text)
+@router.message(F.text, ~F.text.startswith("/"))
 async def process_transaction_message(
     message: Message,
     conn: AsyncConnection
