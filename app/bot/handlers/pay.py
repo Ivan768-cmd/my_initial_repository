@@ -14,7 +14,7 @@ from app.infrastructure.database.repositories.access import (
 
 router = Router(name="pay")
 
-SUB_PRICE_RUB = 300
+SUB_PRICE_RUB = 369
 SUB_DAYS = 30
 
 
