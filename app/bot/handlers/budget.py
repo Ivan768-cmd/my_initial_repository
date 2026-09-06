@@ -3,6 +3,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 from psycopg import AsyncConnection
 
+
 from app.infrastructure.database.repositories.budget import (
     set_limit,
     get_all_limits,
@@ -12,6 +13,7 @@ from app.infrastructure.database.repositories.budget import (
     get_budget_items,
     get_month_spent_by_category,
     get_last_month_expense_share,
+    get_budget_total,
 )
 from app.infrastructure.database.repositories.transaction import (
     get_category_spent,
@@ -80,7 +82,7 @@ async def process_plan(message: Message, conn: AsyncConnection) -> None:
         await message.answer("Использование:\n<code>/plan Продукты 25000</code>")
         return
 
-    category = args[1]
+    category = args[1].capitalize()
     try:
         amount = float(args[2].replace(",", "."))
     except ValueError:
@@ -91,6 +93,26 @@ async def process_plan(message: Message, conn: AsyncConnection) -> None:
         await message.answer("Сумма должна быть больше нуля.")
         return
 
+    income = await get_monthly_income(conn, message.from_user.id)
+    if income is None:
+        await message.answer("Сначала укажи доход:\n<code>/set_income 80000</code>")
+        return
+
+    items = await get_budget_items(conn, message.from_user.id)
+    current_for_category = items.get(category, 0.0)
+    total_without = await get_budget_total(conn, message.from_user.id) - current_for_category
+    new_total = total_without + amount
+
+    if new_total > income:
+        free = income - total_without
+        await message.answer(
+            "Нельзя запланировать больше дохода.\n\n"
+            f"Доход: <b>{income:,.0f} ₽</b>\n"
+            f"Уже занято другими категориями: <b>{total_without:,.0f} ₽</b>\n"
+            f"Свободно: <b>{max(free, 0):,.0f} ₽</b>"
+        )
+        return
+
     await ensure_user(
         conn,
         user_id=message.from_user.id,
@@ -99,10 +121,10 @@ async def process_plan(message: Message, conn: AsyncConnection) -> None:
     )
     await set_budget_item(conn, message.from_user.id, category, amount)
     await message.answer(
-        f"В бюджете «<b>{category.capitalize()}</b>»: <b>{amount:,.0f} ₽</b>\n"
+        f"В бюджете «<b>{category}</b>»: <b>{amount:,.0f} ₽</b>\n"
+        f"Всего по плану: <b>{new_total:,.0f}</b> из <b>{income:,.0f} ₽</b>\n"
         "Смотреть прогресс: /budget"
     )
-
 
 @router.message(Command("budget"))
 @router.message(F.text == "📋 Лимиты")

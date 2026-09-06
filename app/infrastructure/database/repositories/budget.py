@@ -106,22 +106,28 @@ async def get_month_spent_by_category(conn: AsyncConnection, user_id: int) -> di
 
 
 async def get_last_month_expense_share(conn: AsyncConnection, user_id: int) -> dict[str, float]:
-    now = datetime.now()
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     rows = await conn.execute(
         """
         SELECT category, COALESCE(SUM(amount), 0)
         FROM transactions
         WHERE user_id = %s
           AND NOT is_income
-          AND created_at >= %s - INTERVAL '30 days'
-          AND created_at < %s
+          AND created_at >= NOW() - INTERVAL '30 days'
         GROUP BY category
         """,
-        (user_id, month_start, month_start),
+        (user_id,),
     )
     result = await rows.fetchall()
     total = sum(float(r[1]) for r in result)
     if total <= 0:
         return {}
     return {r[0]: float(r[1]) / total for r in result}
+
+
+async def get_budget_total(conn: AsyncConnection, user_id: int) -> float:
+    row = await conn.execute(
+        "SELECT COALESCE(SUM(amount), 0) FROM budget_items WHERE user_id = %s",
+        (user_id,),
+    )
+    result = await row.fetchone()
+    return float(result[0]) if result else 0.0
