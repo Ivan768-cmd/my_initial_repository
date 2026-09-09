@@ -6,7 +6,12 @@ from psycopg import AsyncConnection
 from app.bot.config import Config
 from app.bot.keyboards.reply import get_main_keyboard
 from app.infrastructure.database.repositories.transaction import ensure_user
-from app.infrastructure.database.repositories.access import has_active_premium
+from app.infrastructure.database.repositories.access import (
+    has_active_premium,
+    get_user_subscriptions,
+    grant_premium_days,
+    get_premium_until,
+)
 
 router = Router(name="start")
 
@@ -25,7 +30,29 @@ async def process_start_command(
     )
 
     is_admin = message.from_user.id in config.bot.admin_ids
+    history = await get_user_subscriptions(conn, message.from_user.id)
     is_premium = await has_active_premium(conn, message.from_user.id)
+
+    if not is_admin and not history:
+        until = await grant_premium_days(
+            conn,
+            message.from_user.id,
+            days=3,
+            source="trial",
+        )
+        await message.answer(
+            f"Привет, {message.from_user.first_name}!\n\n"
+            "Дал 3 дня бесплатно, до "
+            f"<b>{until.strftime('%d.%m.%Y')}</b>.\n\n"
+            "Пиши так:\n"
+            "• <code>Такси 450</code>\n"
+            "• <code>Продукты 3200</code>\n"
+            "• <code>Зарплата 85000</code>\n\n"
+            "Потом подписка 369 ₽ / 30 дней: /pay\n"
+            "Список команд — /help",
+            reply_markup=get_main_keyboard()
+        )
+        return
 
     if is_admin or is_premium:
         await message.answer(
@@ -42,9 +69,8 @@ async def process_start_command(
 
     await message.answer(
         f"Привет, {message.from_user.first_name}!\n\n"
-        "Я бот для учёта расходов и доходов.\n\n"
-        "Чтобы пользоваться ботом, нужна подписка.\n"
-        "Стоимость: <b>369 ₽</b> за 30 дней.\n\n"
+        "Пробный период закончился.\n"
+        "Подписка: <b>369 ₽</b> за 30 дней.\n\n"
         "Оплатить: /pay"
     )
 
