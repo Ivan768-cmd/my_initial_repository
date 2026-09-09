@@ -71,6 +71,7 @@ async def process_help_command(
         "/start — начать работу\n"
         "/help — список команд\n"
         "/pay — подписка\n"
+        "/privacy — политика конфиденциальности\n"
         "/balance — текущий баланс\n"
         "/history — последние операции\n"
         "/stats — статистика по категориям\n"

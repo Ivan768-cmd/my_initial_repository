@@ -24,6 +24,7 @@ from app.bot.handlers.settings import router as settings_router
 from app.bot.handlers.reminders import router as reminders_router
 from app.bot.handlers.expenses import router as expenses_router
 from app.bot.handlers.analyze import router as analyze_router
+from app.bot.handlers.privacy import router as privacy_router
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,7 @@ async def main() -> None:
     scheduler.start()
 
     dp.include_router(start_router)
+    dp.include_router(privacy_router)
     dp.include_router(pay_router)
     dp.include_router(reports_router)
     dp.include_router(budget_router)

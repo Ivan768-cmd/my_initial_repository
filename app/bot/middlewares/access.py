@@ -8,7 +8,7 @@ from app.bot.config import Config
 from app.infrastructure.database.repositories.access import has_active_premium
 
 
-ALLOWED_COMMANDS = {"/start", "/pay", "/help", "/subscription"}
+ALLOWED_COMMANDS = {"/start", "/pay", "/help", "/subscription", "/privacy"}
 
 
 class AccessMiddleware(BaseMiddleware):
